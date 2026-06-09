@@ -214,13 +214,49 @@ This command will check for any migrations that have not yet been run and try to
 
 ### Docker
 
-Alternatively, you can use [Docker](https://www.docker.com) to spin up this template locally. To do so, follow these steps:
+The production Compose stack runs Payload against an external MongoDB connection. Uploaded media is stored in a named Docker volume.
 
-1. Follow [steps 1 and 2 from above](#development), the docker-compose file will automatically use the `.env` file in your project root
-1. Next run `docker-compose up`
-1. Follow [steps 4 and 5 from above](#development) to login and create your first admin user
+1. Create the environment file: `cp .env.example .env`.
+1. Set `DATABASE_URL`, replace every `replace-with-...` value, and set `NEXT_PUBLIC_SERVER_URL` to the public URL.
+1. Build and start the stack: `docker compose up --build -d`.
 
-That's it! The Docker instance will help you get up and running quickly while also standardizing the development environment across your teams.
+For local development with the included MongoDB service, use the local Compose file:
+
+```bash
+docker compose -f docker-compose.local.yml up --build -d
+```
+
+Then open `http://localhost:3000/admin` and create the first admin user.
+
+Useful operations:
+
+```bash
+# Follow application logs
+docker compose logs -f
+
+# Rebuild after changing application code
+docker compose up --build -d
+
+# Stop the stack without deleting database or media data
+docker compose down
+
+# Stop the stack and permanently delete media data
+docker compose down --volumes
+```
+
+#### Coolify
+
+1. Create a MongoDB database resource in Coolify and enable persistent storage and backups for it.
+1. Push to `main` and wait for the **Build Docker image** GitHub Actions workflow to publish `ghcr.io/fordeer/payloadcms:main`.
+1. Create this application from the Git repository using the Docker Compose build pack and `docker-compose.yml`. Coolify will pull the prebuilt image instead of building Next.js on the VPS.
+1. Assign the public domain to the `payload` service on port `3000`.
+1. Set `PAYLOAD_IMAGE`, `NEXT_PUBLIC_SERVER_URL`, `DATABASE_URL`, `PAYLOAD_SECRET`, `CRON_SECRET`, and `PREVIEW_SECRET` in Coolify.
+1. If MongoDB is a separate Coolify resource, enable **Connect to Predefined Network** and use its internal hostname in `DATABASE_URL`. Coolify appends the resource UUID to service hostnames, so use the exact internal connection details shown by the MongoDB resource.
+1. Deploy the application and open `/admin` to create the first user.
+
+If the GHCR package is private, add GitHub Container Registry credentials in Coolify. Alternatively, make the package public in the GitHub package settings. For stable deployments, set `PAYLOAD_IMAGE` to a workflow-generated `sha-...` tag instead of `main`.
+
+Do not expose MongoDB publicly just to connect Payload. Keep both resources on the same Coolify server/network and use the internal connection string.
 
 ### Seed
 

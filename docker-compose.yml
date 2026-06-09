@@ -1,31 +1,30 @@
-version: '3'
-
 services:
   payload:
-    image: node:18-alpine
-    ports:
-      - '3000:3000'
+    image: ${PAYLOAD_IMAGE:-ghcr.io/fordeer/payloadcms:main}
+    pull_policy: always
+    expose:
+      - '3000'
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL}
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:?Set PAYLOAD_SECRET}
+      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL:?Set NEXT_PUBLIC_SERVER_URL}
+      CRON_SECRET: ${CRON_SECRET:-}
+      PREVIEW_SECRET: ${PREVIEW_SECRET:-}
+    restart: unless-stopped
     volumes:
-      - .:/home/node/app
-      - node_modules:/home/node/app/node_modules
-    working_dir: /home/node/app/
-    command: sh -c "yarn install && yarn dev"
-    depends_on:
-      - mongo
-    env_file:
-      - .env
-
-  mongo:
-    image: mongo:latest
-    ports:
-      - '27017:27017'
-    command:
-      - --storageEngine=wiredTiger
-    volumes:
-      - data:/data/db
-    logging:
-      driver: none
+      - media:/app/public/media
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3000/admin
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
 volumes:
-  data:
-  node_modules:
+  media:

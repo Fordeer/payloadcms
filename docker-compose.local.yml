@@ -1,0 +1,52 @@
+services:
+  payload:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL:-http://localhost:3000}
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    environment:
+      DATABASE_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-payload}:${MONGO_INITDB_ROOT_PASSWORD:-payload}@mongo:27017/${MONGO_DATABASE:-fordeer}?authSource=admin
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET:-local-development-secret}
+      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL:-http://localhost:3000}
+      CRON_SECRET: ${CRON_SECRET:-local-cron-secret}
+      PREVIEW_SECRET: ${PREVIEW_SECRET:-local-preview-secret}
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - media:/app/public/media
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --quiet
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3000/admin
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  mongo:
+    image: mongo:8.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-payload}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-payload}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-fordeer}
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ['CMD-SHELL', 'mongosh --quiet --host 127.0.0.1 --username "$${MONGO_INITDB_ROOT_USERNAME}" --password "$${MONGO_INITDB_ROOT_PASSWORD}" --authenticationDatabase admin --eval "quit(db.adminCommand(''ping'').ok ? 0 : 2)"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+volumes:
+  media:
+  mongo_data:
